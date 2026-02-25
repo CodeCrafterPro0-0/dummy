@@ -1,22 +1,28 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+/* ================= FIREBASE ================= */
+
+import { initializeApp } from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 import {
-    getFirestore,
-    collection,
-    addDoc,
-    deleteDoc,
-    doc,
-    onSnapshot
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  getFirestore,
+  collection,
+  addDoc,
+  deleteDoc,
+  doc,
+  onSnapshot
+} from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-//for login and out
 import {
   getAuth,
   signInWithPopup,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+
 
 const firebaseConfig = {
   apiKey: "AIzaSyC7Bgx9pwBxz6mdCrNqzeJraDthc486Lqo",
@@ -27,11 +33,13 @@ const firebaseConfig = {
   appId: "1:986638713214:web:53fb0442459812cfa4b32f"
 };
 
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 const auth = getAuth(app);
 const provider = new GoogleAuthProvider();
+
 
 /* ================= APP ================= */
 
@@ -81,17 +89,14 @@ const icons = {
    iconUrl:"https://maps.google.com/mapfiles/ms/icons/red-dot.png",
    iconSize:[32,32]
  }),
-
  "Public Spitting": L.icon({
    iconUrl:"https://maps.google.com/mapfiles/ms/icons/orange-dot.png",
    iconSize:[32,32]
  }),
-
  "Overflow Bin": L.icon({
    iconUrl:"https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
    iconSize:[32,32]
  }),
-
  "Plastic Waste": L.icon({
    iconUrl:"https://maps.google.com/mapfiles/ms/icons/green-dot.png",
    iconSize:[32,32]
@@ -106,95 +111,104 @@ function updateCounter(count){
 }
 
 
-/* ---------- LOAD REPORTS ---------- */
+/* ---------- REALTIME REPORT LISTENER ---------- */
 
-async function listenReports(){
+function listenReports(){
 
-  const reportsRef = collection(db, "reports");
+  const reportsRef = collection(db,"reports");
 
-    onSnapshot(reportsRef, (snapshot) => {
-      reportsDiv.innerHTML = "";
+  return onSnapshot(reportsRef,(snapshot)=>{
 
-      map.eachLayer(layer=>{
-        if(layer instanceof L.Marker){
-          map.removeLayer(layer);
-        }
-      });
+    reportsDiv.innerHTML="";
 
-      let count = 0;
+    map.eachLayer(layer=>{
+      if(layer instanceof L.Marker){
+        map.removeLayer(layer);
+      }
+    });
+
+    let count=0;
 
     snapshot.forEach(docSnap=>{
 
       const report = docSnap.data();
       const id = docSnap.id;
 
-      const div = document.createElement("div");
-            div.className = "report";
+      const div=document.createElement("div");
+      div.className="report";
 
-            div.innerHTML = `
-              <strong>📍 ${report.location}</strong><br>
-              Issue: ${report.issue}<br>
-              ${report.description || ""}
-              <br>
-              <button onclick="deleteReport('${id}')">
-              Delete
-              </button>
-            `;
+      div.innerHTML=`
+        <strong>📍 ${report.location}</strong><br>
+        Issue: ${report.issue}<br>
+        ${report.description || ""}
+        <br>
+        ${
+          currentUser && currentUser.email===report.user
+            ? `<button onclick="deleteReport('${id}')">Delete</button>`
+            : ""
+        }
+      `;
 
-    reportsDiv.appendChild(div);
+      reportsDiv.appendChild(div);
 
-    if(report.location.includes(",")){
-      const [lat,lon] = report.location.split(",");
+      if(report.location.includes(",")){
+        const [lat,lon]=report.location.split(",");
 
-      L.marker([lat,lon],{
-        icon: icons[report.issue]
-      }).addTo(map);
-    }
+        L.marker([lat,lon],{
+          icon:icons[report.issue]
+        }).addTo(map);
+      }
 
-    count++;
-  });
+      count++;
+    });
 
-  updateCounter(count);
+    updateCounter(count);
   });
 }
 
-/* Login and logout logic */
-loginBtn.addEventListener("click", async() => {
-  await signInWithPopup(auth, provider);
+
+/* ---------- LOGIN / LOGOUT ---------- */
+
+loginBtn.addEventListener("click", async()=>{
+  await signInWithPopup(auth,provider);
 });
 
-logoutBtn.addEventListener("click", async() => {
+logoutBtn.addEventListener("click", async()=>{
   await signOut(auth);
 });
+
+
+/* ---------- AUTH STATE ---------- */
 
 let currentUser = null;
 let unsubscribe = null;
 
-onAuthStateChanged(auth, user =>{
+onAuthStateChanged(auth,user=>{
+
   if(unsubscribe){
     unsubscribe();
-    unsubscribe = null;
+    unsubscribe=null;
   }
 
   if(user){
-    currentUser = user;
+    currentUser=user;
 
-    userInfo.innerHTML = `Logged in as ${user.displayName}`;
+    userInfo.innerText=`Logged in as ${user.displayName}`;
 
     loginBtn.classList.add("hidden");
-
     logoutBtn.classList.remove("hidden");
 
-    unsubscribe = listenReports(currentUser);
-  } else {
-    currentUser = null;
+    unsubscribe = listenReports();
+  }
+  else{
+    currentUser=null;
 
-    userInfo.innerText = "";
+    userInfo.innerText="";
 
     loginBtn.classList.remove("hidden");
     logoutBtn.classList.add("hidden");
 
-    reportsDiv.innerHTML= "";
+    reportsDiv.innerHTML="";
     updateCounter(0);
   }
 });
@@ -216,16 +230,15 @@ getLocationBtn.addEventListener("click",()=>{
       locationInput.value=`${lat},${lon}`;
       map.setView([lat,lon],16);
 
-      getLocationBtn.innerText="Use My Location";
       getLocationBtn.disabled=false;
+      getLocationBtn.innerText="Use My Location";
     },
 
     err=>{
       alert(err.message);
-      getLocationBtn.innerText="Use My Location";
       getLocationBtn.disabled=false;
+      getLocationBtn.innerText="Use My Location";
     }
-
   );
 });
 
@@ -236,26 +249,27 @@ form.addEventListener("submit",e=>{
   e.preventDefault();
 
   if(!currentUser){
-    showMessage("⚠️ Please login first");
+    showMessage("⚠ Please login first");
     return;
   }
 
-  const location = locationInput.value;
-  const issue = document.getElementById("issue").value;
-  const description = document.getElementById("description").value;
+  const location=locationInput.value;
+  const issue=document.getElementById("issue").value;
+  const description=document.getElementById("description").value;
 
-  let photo = null;
+  let photo=null;
 
   if(photoInput.files[0]){
-    const reader = new FileReader();
+    const reader=new FileReader();
 
-    reader.onload = ()=>{
-      photo = reader.result;
+    reader.onload=()=>{
+      photo=reader.result;
       saveReport(location,issue,description,photo);
     };
 
     reader.readAsDataURL(photoInput.files[0]);
-  }else{
+  }
+  else{
     saveReport(location,issue,description,null);
   }
 });
@@ -269,7 +283,7 @@ async function saveReport(location,issue,description,photo){
     description,
     photo,
     user:currentUser.email,
-    created: Date.now()
+    created:Date.now()
   });
 
   form.reset();
@@ -280,10 +294,8 @@ async function saveReport(location,issue,description,photo){
 /* ---------- DELETE REPORT ---------- */
 
 window.deleteReport = async function(id){
-
   await deleteDoc(doc(db,"reports",id));
-
-  showMessage("🗑️ Report deleted");
+  showMessage("🗑 Report deleted");
 };
 
 
@@ -292,15 +304,10 @@ window.deleteReport = async function(id){
 toggleBtn.addEventListener("click",()=>{
   reportsSection.classList.toggle("hidden");
 
-  toggleBtn.innerText =
+  toggleBtn.innerText=
     reportsSection.classList.contains("hidden")
       ? "View Reports"
       : "Hide Reports";
 });
-
-
-/* ---------- INITIAL LOAD ---------- */
-
-listenReports();
 
 });
