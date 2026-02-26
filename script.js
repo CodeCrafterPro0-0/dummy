@@ -19,14 +19,8 @@ import {
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged
-<<<<<<< HEAD
 } from
 "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-
-=======
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
->>>>>>> 2fccdd7e5c45c151580db8ed17f0ce2d9a80ed21
 
 const firebaseConfig = {
   apiKey: "AIzaSyC7Bgx9pwBxz6mdCrNqzeJraDthc486Lqo",
@@ -62,6 +56,7 @@ const message = document.getElementById("message");
 const loginBtn = document.getElementById("loginBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const userInfo = document.getElementById("userInfo");
+const adminEmail1 = "alaxenine@gmail.com";
 
 
 /* ---------- MESSAGE ---------- */
@@ -81,9 +76,10 @@ function showMessage(text){
 const map = L.map("map").setView([26.1445,91.7362],13);
 
 L.tileLayer(
-"https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-{ attribution:"© OpenStreetMap" }
-).addTo(map);
+"https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+{
+  attribution:"© OpenStreetMap © CARTO"
+}).addTo(map);
 
 
 /* ---------- ICONS ---------- */
@@ -147,7 +143,7 @@ function listenReports(){
         ${report.description || ""}
         <br>
         ${
-          currentUser && currentUser.email===report.user
+          currentUser?.email=== adminEmail1
             ? `<button onclick="deleteReport('${id}')">Delete</button>`
             : ""
         }
@@ -197,7 +193,9 @@ onAuthStateChanged(auth,user=>{
   if(user){
     currentUser=user;
 
-    userInfo.innerText=`Logged in as ${user.displayName}`;
+    const isAdmin = user.email === adminEmail1;
+
+    userInfo.innerText=`Logged in as ${user.displayName}` + (isAdmin ? "👑 Admin" : "");
 
     loginBtn.classList.add("hidden");
     logoutBtn.classList.remove("hidden");
@@ -281,6 +279,17 @@ form.addEventListener("submit",e=>{
 
 async function saveReport(location,issue,description,photo){
 
+  const lastReport = localStorage.getItem("lastReport");
+
+  if (lastReport){
+    const diff = Date.now() - Number(lastReport);
+
+    if (diff < 120000){
+      showMessage("⌛ Please wait before reporting again");
+      return;
+    }
+  }
+
   await addDoc(collection(db,"reports"),{
     location,
     issue,
@@ -289,6 +298,8 @@ async function saveReport(location,issue,description,photo){
     user:currentUser.email,
     created:Date.now()
   });
+
+  localStorage.setItem("lastReport", Date.now());
 
   form.reset();
   showMessage("✅ Report submitted successfully");
@@ -305,13 +316,13 @@ window.deleteReport = async function(id){
 
 /* ---------- TOGGLE REPORTS ---------- */
 
-toggleBtn.addEventListener("click",()=>{
-  reportsSection.classList.toggle("hidden");
+  toggleBtn.addEventListener("click",()=>{
+    reportsSection.classList.toggle("hidden");
 
-  toggleBtn.innerText=
-    reportsSection.classList.contains("hidden")
-      ? "View Reports"
-      : "Hide Reports";
-});
+    toggleBtn.innerText=
+      reportsSection.classList.contains("hidden")
+        ? "View Reports"
+        : "Hide Reports";
+  });
 
 });
